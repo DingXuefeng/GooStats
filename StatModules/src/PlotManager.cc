@@ -20,7 +20,6 @@
 #include "TROOT.h"
 #include "goofit/PDFs/GooPdf.h"
 #include "goofit/BinnedDataSet.h"
-#include "TF1.h"
 #include "TFile.h"
 #include "GooStatsException.h"
 #include "OutputManager.h"
@@ -120,16 +119,16 @@ TCanvas *PlotManager::drawSingleGroup(const std::string &name,const std::vector<
     }
     if(configs.size()==0) 
       std::cout<<"colors/linestyles are not set or size are not consistent, default styles are used"<<std::endl;
-    draw(getGSFitManager(),sumpdf,configs);
+    draw(getGSFitManager(),sumpdf,configs,i);
   }
 
   return cc;
 }
-void PlotManager::draw(GSFitManager *gsFitManager/*chi2,likelihood etc.*/,SumPdf *sumpdf,std::map<std::string,Config> config) {
+void PlotManager::draw(GSFitManager *gsFitManager/*chi2,likelihood etc.*/,SumPdf *sumpdf,std::map<std::string,Config> config,int index) {
   TPad *curr_pad = static_cast<TPad*>(gPad);
   //////////////////////////// for main pad ///////////////////////////////////
   curr_pad->cd();
-  TPad *main_pad = new TPad(gPad->GetName()+TString("_main"),gPad->GetTitle()+TString(" main"),0,0.3,1,1);
+  TPad *main_pad = new TPad(gPad->GetName()+TString(Form("_%d_main",index)),gPad->GetTitle()+TString(Form(" %d main",index)),0,0.3,1,1);
   main_pad->cd();
   // create TLegend
   TLegend *leg = new TLegend(0.4,0.40,0.96,0.96);
@@ -177,7 +176,7 @@ void PlotManager::draw(GSFitManager *gsFitManager/*chi2,likelihood etc.*/,SumPdf
         sumpdf->getName(),sumpdf->Norm(),"days #times tons").c_str(),"lpe"); // we agree it's day ton
   // -------------- total model
   sumpdf->cache();
-  TF1Helper *total_helper = new TF1Helper(sumpdf,1);
+  TF1Helper *total_helper = new TF1Helper(sumpdf,1,index);
   sumpdf->restore(); // GooPdf::evaluateAtPoints is called, need to restore
   TF1 *total_h = total_helper->getTF1();
   // draw total model
@@ -198,7 +197,7 @@ void PlotManager::draw(GSFitManager *gsFitManager/*chi2,likelihood etc.*/,SumPdf
   for(size_t i = 0;i<components.size();++i) {
     GooPdf *pdf = static_cast<GooPdf*>(components.at(i));
     Variable *N = Ns.at(i);
-    TF1Helper *single_helper = new TF1Helper(pdf,N->value*sumpdf->Norm());
+    TF1Helper *single_helper = new TF1Helper(pdf,N->value*sumpdf->Norm(),index);
     sumpdf->restore(); // GooPdf::evaluateAtPoints is called, need to restore
     TF1 *single_h = single_helper->getTF1();
     if(config.find(pdf->getName())!=config.end()) {
@@ -222,15 +221,15 @@ void PlotManager::draw(GSFitManager *gsFitManager/*chi2,likelihood etc.*/,SumPdf
   leg->DrawClone();
   //////////////////////////// for residual pad ////////////////////////////////
   curr_pad->cd();
-  TPad *res_pad = new TPad(gPad->GetName()+TString("_res"),gPad->GetTitle()+TString(" residual"),0,0,1,0.3);
+  TPad *res_pad = new TPad(gPad->GetName()+TString(Form("_%d_res",index)),gPad->GetTitle()+TString(Form(" %d residual",index)),0,0,1,0.3);
   res_pad->cd();
   res_pad->SetLogy(false);
   res_pad->SetGridy(true);
   res_pad->SetTopMargin(0.05);
   res_pad->SetBottomMargin(0.05);
   TH1 *res = (TH1*)xvarHist->DrawClone("e");
-  res->SetName((sumpdf->getName()+"_res").c_str());
-  res->SetTitle((sumpdf->getName()+"_res").c_str());
+  res->SetName((sumpdf->getName()+Form("_%d_res",index)).c_str());
+  res->SetTitle((sumpdf->getName()+Form(" %d res",index)).c_str());
   toBeSaved.insert(res);
   res->GetYaxis()->SetTitle("D-M / #sqrt{D}");
   res->GetYaxis()->SetTitleSize(0.1);
@@ -291,7 +290,7 @@ void PlotManager::drawLikelihoodpValue(int ,double LL,const std::vector<double> 
   pave->DrawClone();
   toBeSaved.insert(cc);
 }
-PlotManager::TF1Helper::TF1Helper(GooPdf *pdf,double norm) {
+PlotManager::TF1Helper::TF1Helper(GooPdf *pdf,double norm,int index) {
   static int hash = -1;
   Variable *var = *pdf->obsBegin();
   double lo = var->lowerlimit;
@@ -308,7 +307,7 @@ PlotManager::TF1Helper::TF1Helper(GooPdf *pdf,double norm) {
     data->SetBinContent(i, binValues[i-1] * de *norm);
     //    std::cout<<pdf->getName()<<" "<<i<<" "<<binValues[i-1]<<" "<<de<<" "<<norm<<std::endl;
   }
-  f = new TF1(pdf->getName().c_str(),this,&TF1Helper::eval,lo,up,0,"TF1Helper","eval");
+  f = new TF1((pdf->getName()+Form("_%d",index)).c_str(),this,&TF1Helper::eval,lo,up,0,"TF1Helper","eval");
 }
 double PlotManager::TF1Helper::eval(double *xx, double *) {
   return data->Interpolate(xx[0]);

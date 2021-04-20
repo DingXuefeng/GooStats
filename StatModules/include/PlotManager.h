@@ -38,7 +38,7 @@ class PlotManager : public StatModule {
     };
     class TF1Helper {
       public:
-        TF1Helper(GooPdf *pdf_,double norm_ = 1);
+        TF1Helper(GooPdf *pdf_,double norm_ = 1,int index = 0);
         TF1 *getTF1() { return f; }
       private:
         double eval(double *xx,double *par);
@@ -54,7 +54,7 @@ class PlotManager : public StatModule {
     //! user can set the color and line style of each components by specifying the names
     //! plot() will look up the name of components of SumPdf
     //! by default different colors will be used for each species and all solid lines
-    virtual void draw(GSFitManager *gsFitManager,SumPdf *pdf,std::map<std::string,Config> config= std::map<std::string,Config>());
+    virtual void draw(GSFitManager *gsFitManager,SumPdf *pdf,std::map<std::string,Config> config= std::map<std::string,Config>(),int index = 0);
   protected:
     EColor getColor(const std::string &n) const {
       return colorlibrary.find(n)!=colorlibrary.end()?colorlibrary.at(n):kBlack;
